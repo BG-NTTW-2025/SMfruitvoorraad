@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Fruit Voorraad Test</title>
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: monospace;
+            background: #222;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 50px;
+        }
+        .fruit-box {
+            background: #333;
+            border: 2px solid #555;
+            padding: 20px;
+            margin: 10px;
+            border-radius: 8px;
+            text-align: center;
+            width: 200px;
+        }
+        button {
+            padding: 8px 15px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn-plus { background: #4CAF50; color: white; border: none; }
+        .btn-min { background: #f44336; color: white; border: none; }
+        #status { margin-top: 20px; color: #ffcc00; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <h1>Fruit Voorraad Beheer</h1>
+
+    <!-- Appels Sectie -->
+    <div class="fruit-box">
+        <h3>Appels</h3>
+        <p>Voorraad: <span id="appels-count">--</span></p>
+        <button class="btn-min" onclick="wijzigFruit('appels', -1)">-</button>
+        <button class="btn-plus" onclick="wijzigFruit('appels', 1)">+</button>
+    </div>
+
+    <!-- Peren Sectie -->
+    <div class="fruit-box">
+        <h3>Peren</h3>
+        <p>Voorraad: <span id="peren-count">--</span></p>
+        <button class="btn-min" onclick="wijzigFruit('peren', -1)">-</button>
+        <button class="btn-plus" onclick="wijzigFruit('peren', 1)">+</button>
+    </div>
+
+    <div id="status">Verbinding maken met Supabase...</div>
+
+    <script>
+        // Vul hier jouw eigen Supabase URL en Anon Key in
+        const SUPABASE_URL = 'https://rbzyklwyrsdlzvvkvvts.supabase.co/';
+        const SUPABASE_KEY = 'sb_publishable_LfDes4aWpZ5jGRvUC3L_hA_KrsyEkAp';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // We gaan er vanuit dat onze data in rij met id = 1 staat
+        const ROW_ID = 1; 
+
+        let huidigeAppels = 0;
+        let huidigePeren = 0;
+
+        // 1. Data ophalen bij het laden van de pagina
+// We gebruiken geen vaste ID-filter meer, we pakken gewoon de eerste rij
+
+        async function laadVoorraad() {
+            const { data, error } = await _supabase
+                .from('fruit_voorraad')
+                .select('*'); // Vraag alle rijen op zonder filter
+
+            if (error) {
+                console.error("Fout bij ophalen:", error);
+                document.getElementById("status").innerText = "Fout: " + error.message;
+                return;
+            }
+
+            if (data && data.length > 0) {
+                // Pak de eerste rij uit de tabel
+                huidigeAppels = data[0].appels;
+                huidigePeren = data[0].peren;
+                updateScherm();
+                document.getElementById("status").innerText = "Data succesvol geladen!";
+            } else {
+                document.getElementById("status").innerText = "Tabel is leeg volgens Supabase!";
+            }
+        }
+
+        // 2. Data updaten in Supabase wanneer er op + of - wordt geklikt
+		async function wijzigFruit(soort, bedrag) {
+            if (soort === 'appels') {
+                huidigeAppels += bedrag;
+                if (huidigeAppels < 0) huidigeAppels = 0;
+            } else if (soort === 'peren') {
+                huidigePeren += bedrag;
+                if (huidigePeren < 0) huidigePeren = 0;
+            }
+
+            updateScherm();
+            document.getElementById("status").innerText = "Opslaan in Supabase...";
+
+            // We updaten op basis van de eerste rij of sturen een upsert
+			            // Stuur de nieuwe waardes naar Supabase
+
+            const { error } = await _supabase
+                .from('fruit_voorraad')
+                .update({ 
+                    appels: huidigeAppels, 
+                    peren: huidigePeren 
+                })
+                .eq('id', 1); // Pas dit aan als jouw rij een andere ID heeft
+
+            if (error) {
+                console.error("Fout bij opslaan:", error);
+                document.getElementById("status").innerText = "Fout bij opslaan: " + error.message;
+            } else {
+                document.getElementById("status").innerText = "Opgeslagen in Supabase!";
+            }
+        }
+
+        // 3. HTML elementen verversen met de actuele variabelen
+        function updateScherm() {
+            document.getElementById("appels-count").innerText = huidigeAppels;
+            document.getElementById("peren-count").innerText = huidigePeren;
+        }
+
+        // Start direct met inladen zodra het script laadt
+        laadVoorraad();
+		
+	
+    </script>
+</body>
+</html>
